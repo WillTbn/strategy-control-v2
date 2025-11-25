@@ -112,6 +112,39 @@ let rowsClient = [
 
 let nextId = rowsClient.length + 1;
 
+// helper to compute saldo from investment fields inside fake item
+function computeSaldo(item) {
+  try {
+    if (!item) return 0;
+    const inv =
+      item.investment && typeof item.investment === "object"
+        ? item.investment
+        : item.cliente &&
+          item.cliente.investment &&
+          typeof item.cliente.investment === "object"
+        ? item.cliente.investment
+        : null;
+    if (!inv) return 0;
+    const toNum = (v) => {
+      if (v == null) return 0;
+      if (typeof v === "number") return v;
+      const s = String(v).replace(/[^0-9,.-]/g, "");
+      if (s.indexOf(",") !== -1 && s.indexOf(".") === -1)
+        s = s.replace(/,/, ".");
+      const n = Number(s);
+      return Number.isFinite(n) ? n : 0;
+    };
+    const a = toNum(
+      inv.investimento || inv.investment || inv.valor || inv.valor_investimento
+    );
+    const b = toNum(inv.saldo_investivel || inv.saldoInvestivel || inv.saldo);
+    const c = toNum(inv.banking || inv.banco || inv.banking_value);
+    return a + b + c;
+  } catch (e) {
+    return 0;
+  }
+}
+
 function list() {
   return rowsClient;
 }
@@ -122,6 +155,45 @@ function get(id) {
 
 function create(data) {
   const item = { id: nextId++, cliente: data.cliente || data };
+  try {
+    // ensure investment object exists and canonical fields
+    const cliente = item.cliente || item;
+    if (!cliente.investment || typeof cliente.investment !== "object")
+      cliente.investment = {};
+    const inv = cliente.investment;
+    inv.investimento =
+      inv.investimento != null
+        ? inv.investimento
+        : inv.investment != null
+        ? inv.investment
+        : 0;
+    inv.saldo_investivel =
+      inv.saldo_investivel != null
+        ? inv.saldo_investivel
+        : inv.saldoInvestivel != null
+        ? inv.saldoInvestivel
+        : inv.saldo != null
+        ? inv.saldo
+        : 0;
+    inv.banking =
+      inv.banking != null
+        ? inv.banking
+        : inv.banco != null
+        ? inv.banco
+        : inv.banking_value != null
+        ? inv.banking_value
+        : 0;
+    inv.saldo = computeSaldo(item);
+    item.saldo = inv.saldo;
+    try {
+      if (item.cliente && typeof item.cliente === "object")
+        item.cliente.saldo = inv.saldo;
+    } catch (e) {}
+    // mirror into top-level investment for compatibility
+    try {
+      item.investment = Object.assign({}, inv, item.investment || {});
+    } catch (e) {}
+  } catch (e) {}
   rowsClient.push(item);
   return item;
 }
@@ -130,6 +202,54 @@ function update(id, data) {
   const idx = rowsClient.findIndex((r) => r.id === id);
   if (idx === -1) return null;
   rowsClient[idx] = { ...rowsClient[idx], cliente: data.cliente || data };
+  try {
+    // ensure investment canonical fields and recompute saldo
+    try {
+      const cliente = rowsClient[idx].cliente || rowsClient[idx];
+      if (!cliente.investment || typeof cliente.investment !== "object")
+        cliente.investment = {};
+      const inv = cliente.investment;
+      inv.investimento =
+        inv.investimento != null
+          ? inv.investimento
+          : inv.investment != null
+          ? inv.investment
+          : 0;
+      inv.saldo_investivel =
+        inv.saldo_investivel != null
+          ? inv.saldo_investivel
+          : inv.saldoInvestivel != null
+          ? inv.saldoInvestivel
+          : inv.saldo != null
+          ? inv.saldo
+          : 0;
+      inv.banking =
+        inv.banking != null
+          ? inv.banking
+          : inv.banco != null
+          ? inv.banco
+          : inv.banking_value != null
+          ? inv.banking_value
+          : 0;
+      inv.saldo = computeSaldo(rowsClient[idx]);
+      rowsClient[idx].saldo = inv.saldo;
+      try {
+        if (
+          rowsClient[idx].cliente &&
+          typeof rowsClient[idx].cliente === "object"
+        )
+          rowsClient[idx].cliente.saldo = inv.saldo;
+      } catch (e) {}
+      // also mirror into top-level investment
+      try {
+        rowsClient[idx].investment = Object.assign(
+          {},
+          inv,
+          rowsClient[idx].investment || {}
+        );
+      } catch (e) {}
+    } catch (e) {}
+  } catch (e) {}
   return rowsClient[idx];
 }
 
