@@ -24,6 +24,132 @@ try {
 }
 const db = new Database(dbFile);
 
+// Helper: compute aggregated saldo from investment fields (investimento, saldo_investivel, banking)
+function computeSaldoFromObject(obj) {
+  try {
+    if (!obj || typeof obj !== "object") return 0;
+    // possible locations: top-level investment, or cliente.investment
+    const inv =
+      obj.investment && typeof obj.investment === "object"
+        ? obj.investment
+        : obj.cliente &&
+          obj.cliente.investment &&
+          typeof obj.cliente.investment === "object"
+        ? obj.cliente.investment
+        : null;
+    if (!inv) return 0;
+    const toNum = (v) => {
+      if (v == null) return 0;
+      if (typeof v === "number") return v;
+      try {
+        // strip non-numeric (except dot and comma)
+        let s = String(v).replace(/[^0-9,.-]/g, "");
+        // support comma as decimal sep
+        if (s.indexOf(",") !== -1 && s.indexOf(".") === -1)
+          s = s.replace(/,/, ".");
+        const n = Number(s);
+        return Number.isFinite(n) ? n : 0;
+      } catch (e) {
+        return 0;
+      }
+    };
+    const a = toNum(
+      inv.investimento || inv.investment || inv.valor || inv.valor_investimento
+    );
+    const b = toNum(inv.saldo_investivel || inv.saldoInvestivel || inv.saldo);
+    const c = toNum(inv.banking || inv.banco || inv.banking_value);
+    return a + b + c;
+  } catch (e) {
+    return 0;
+  }
+}
+
+// Ensure canonical investment fields exist in both top-level and cliente scopes
+function ensureInvestmentFields(obj) {
+  try {
+    if (!obj || typeof obj !== "object") return;
+    // prefer explicit investment at top-level, otherwise use cliente.investment
+    let invTop = null;
+    if (obj.investment && typeof obj.investment === "object")
+      invTop = obj.investment;
+    let invCliente = null;
+    if (
+      obj.cliente &&
+      obj.cliente.investment &&
+      typeof obj.cliente.investment === "object"
+    )
+      invCliente = obj.cliente.investment;
+
+    // choose source: prefer cliente.investment if present, else top-level
+    const source = invCliente || invTop || {};
+
+    const toNum = (v) => {
+      if (v == null) return 0;
+      if (typeof v === "number") return v;
+      let s = String(v).replace(/[^0-9,.-]/g, "");
+      if (s.indexOf(",") !== -1 && s.indexOf(".") === -1)
+        s = s.replace(/,/, ".");
+      const n = Number(s);
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    const investimento =
+      source.investimento != null
+        ? source.investimento
+        : source.investment != null
+        ? source.investment
+        : 0;
+    const saldo_investivel =
+      source.saldo_investivel != null
+        ? source.saldo_investivel
+        : source.saldoInvestivel != null
+        ? source.saldoInvestivel
+        : source.saldo != null
+        ? source.saldo
+        : 0;
+    const banking =
+      source.banking != null
+        ? source.banking
+        : source.banco != null
+        ? source.banco
+        : source.banking_value != null
+        ? source.banking_value
+        : 0;
+    const total =
+      toNum(investimento) + toNum(saldo_investivel) + toNum(banking);
+
+    const canonical = {
+      investimento: investimento,
+      saldo_investivel: saldo_investivel,
+      banking: banking,
+      saldo: total,
+    };
+
+    // set on cliente.investment
+    try {
+      if (!obj.cliente || typeof obj.cliente !== "object")
+        obj.cliente = obj.cliente || {};
+      obj.cliente.investment = Object.assign(
+        {},
+        canonical,
+        obj.cliente.investment || {}
+      );
+      // also set cliente.saldo for frontend compatibility
+      try {
+        obj.cliente.saldo = total;
+      } catch (e) {}
+    } catch (e) {}
+    // set on top-level investment
+    try {
+      obj.investment = Object.assign({}, canonical, obj.investment || {});
+    } catch (e) {}
+    // set top-level saldo as well
+    try {
+      obj.saldo = total;
+    } catch (e) {}
+  } catch (e) {}
+}
+
 // Create table if not exists (data column may be added by migration step below)
 db.prepare(
   `CREATE TABLE IF NOT EXISTS clients (
@@ -266,6 +392,10 @@ function toShape(row) {
           if (out.investment && out.investment.assessor != null)
             delete out.assessor;
         } catch (e) {}
+        // Ensure investment canonical fields and compute aggregated saldo
+        try {
+          ensureInvestmentFields(out);
+        } catch (e) {}
         return out;
       }
     } catch (err) {
@@ -385,6 +515,64 @@ function create(data) {
           }
         });
       }
+    }
+  } catch (e) {}
+  // Ensure investment contains expected fields and compute its saldo as sum(investimento, saldo_investivel, banking)
+  try {
+    if (cliente) {
+      if (!cliente.investment || typeof cliente.investment !== "object")
+        cliente.investment = {};
+      const inv = cliente.investment;
+      const toNum = (v) => {
+        if (v == null) return 0;
+        if (typeof v === "number") return v;
+        let s = String(v).replace(/[^0-9,.-]/g, "");
+        if (s.indexOf(",") !== -1 && s.indexOf(".") === -1)
+          s = s.replace(/,/, ".");
+        const n = Number(s);
+        return Number.isFinite(n) ? n : 0;
+      };
+      // respect existing alternative keys but normalize into these canonical fields
+      inv.investimento =
+        inv.investimento != null
+          ? inv.investimento
+          : inv.investment != null
+          ? inv.investment
+          : 0;
+      inv.saldo_investivel =
+        inv.saldo_investivel != null
+          ? inv.saldo_investivel
+          : inv.saldoInvestivel != null
+          ? inv.saldoInvestivel
+          : inv.saldo != null
+          ? inv.saldo
+          : 0;
+      inv.banking =
+        inv.banking != null
+          ? inv.banking
+          : inv.banco != null
+          ? inv.banco
+          : inv.banking_value != null
+          ? inv.banking_value
+          : 0;
+      const total =
+        toNum(inv.investimento) +
+        toNum(inv.saldo_investivel) +
+        toNum(inv.banking);
+      inv.saldo = total;
+      // also set top-level payloadObj.investment and payloadObj.saldo for compatibility
+      try {
+        payloadObj.investment = payloadObj.investment || {};
+        payloadObj.investment.investimento = inv.investimento;
+        payloadObj.investment.saldo_investivel = inv.saldo_investivel;
+        payloadObj.investment.banking = inv.banking;
+        payloadObj.investment.saldo = inv.saldo;
+        payloadObj.saldo = total;
+        try {
+          if (payloadObj.cliente && typeof payloadObj.cliente === "object")
+            payloadObj.cliente.saldo = total;
+        } catch (e) {}
+      } catch (e) {}
     }
   } catch (e) {}
   // store the whole payload object (so frontend structure is preserved)
