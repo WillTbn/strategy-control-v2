@@ -13,6 +13,12 @@ if (useFakes) {
 // List
 router.get("/", (req, res) => {
   const list = adapter.list();
+  // resolve any /storage paths to absolute URLs before responding
+  const base =
+    process.env.API_BASE_URL || `${req.protocol}://${req.get("host")}`;
+  try {
+    resolveStorageUrls(list, base);
+  } catch (e) {}
   res.json(list);
 });
 
@@ -21,6 +27,11 @@ router.get("/:id", (req, res) => {
   const id = Number(req.params.id);
   const item = adapter.get(id);
   if (!item) return res.status(404).json({ error: "Not found" });
+  const base =
+    process.env.API_BASE_URL || `${req.protocol}://${req.get("host")}`;
+  try {
+    resolveStorageUrls(item, base);
+  } catch (e) {}
   res.json(item);
 });
 
@@ -70,6 +81,47 @@ try {
   // Provide both single and fields to keep API compatible.
   const noop = () => (req, res, next) => next();
   upload = { single: noop, fields: () => noop() };
+}
+
+// Replace any string starting with '/storage' inside an object/array with an absolute URL.
+function resolveStorageUrls(obj, base) {
+  if (!obj || !base) return;
+  function walk(o) {
+    if (o == null) return;
+    if (typeof o === "string") return;
+    if (Array.isArray(o)) {
+      for (let i = 0; i < o.length; i++) {
+        const v = o[i];
+        if (typeof v === "string") {
+          if (v.startsWith("/storage")) o[i] = `${base}${v}`;
+          else {
+            const m = v.match(/^https?:\/\/[^\/]+(\/storage\/.*)$/);
+            if (m) o[i] = `${base}${m[1]}`;
+          }
+        } else {
+          walk(v);
+        }
+      }
+      return;
+    }
+    if (typeof o === "object") {
+      for (const k of Object.keys(o)) {
+        try {
+          const v = o[k];
+          if (typeof v === "string") {
+            if (v.startsWith("/storage")) o[k] = `${base}${v}`;
+            else {
+              const m = v.match(/^https?:\/\/[^\/]+(\/storage\/.*)$/);
+              if (m) o[k] = `${base}${m[1]}`;
+            }
+          } else if (Array.isArray(v) || typeof v === "object") {
+            walk(v);
+          }
+        } catch (e) {}
+      }
+    }
+  }
+  walk(obj);
 }
 
 // load locale messages (pt-BR) - fallback to inline mapping
@@ -532,7 +584,10 @@ router.post("/upload", upload.single("file"), (req, res, next) => {
     const name = path.basename(req.file.path);
     // original filename preserved in response
     const original = req.file.originalname || name;
-    return res.json({ url: `/storage/clients/${name}`, name: original });
+    const rel = `/storage/clients/${name}`;
+    const base =
+      process.env.API_BASE_URL || `${req.protocol}://${req.get("host")}`;
+    return res.json({ url: `${base}${rel}`, name: original });
   } catch (err) {
     next(err);
   }
@@ -564,7 +619,10 @@ router.post("/upload-b64", (req, res, next) => {
     const dest = path.join(clientsStorage, filename);
     const buf = Buffer.from(base64, "base64");
     fs.writeFileSync(dest, buf);
-    return res.json({ url: `/storage/clients/${filename}`, name });
+    const rel = `/storage/clients/${filename}`;
+    const base =
+      process.env.API_BASE_URL || `${req.protocol}://${req.get("host")}`;
+    return res.json({ url: `${base}${rel}`, name });
   } catch (err) {
     next(err);
   }
@@ -636,6 +694,11 @@ router.post(
         );
       }
       const created = adapter.create(data);
+      try {
+        const base =
+          process.env.API_BASE_URL || `${req.protocol}://${req.get("host")}`;
+        resolveStorageUrls(created, base);
+      } catch (e) {}
       res.status(201).json(created);
     } catch (err) {
       next(err);
@@ -688,6 +751,11 @@ router.put(
         );
       const updated = adapter.update(id, data);
       if (!updated) return res.status(404).json({ error: "Not found" });
+      try {
+        const base =
+          process.env.API_BASE_URL || `${req.protocol}://${req.get("host")}`;
+        resolveStorageUrls(updated, base);
+      } catch (e) {}
       res.json(updated);
     } catch (err) {
       next(err);
