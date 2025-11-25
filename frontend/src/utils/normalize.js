@@ -106,7 +106,11 @@ export function normalizeClientForDisplay(client) {
 
   try {
     for (const k of titleKeys) {
-      if (client[k]) client[k] = titleCase(client[k])
+      if (client[k]) {
+        if (typeof client[k] === 'string') client[k] = titleCase(client[k])
+        else if (client[k] && typeof client[k] === 'object' && client[k].label)
+          client[k].label = titleCase(client[k].label)
+      }
     }
     // also try common nested residential/address shapes
     if (client.residential && typeof client.residential === 'object') {
@@ -117,7 +121,10 @@ export function normalizeClientForDisplay(client) {
       if (r.property) r.property = titleCase(r.property)
     }
     for (const k of stateKeys) {
-      if (client[k]) client[k] = normalizeStateValue(client[k])
+      if (!client[k]) continue
+      if (typeof client[k] === 'string') client[k] = normalizeStateValue(client[k])
+      else if (client[k] && typeof client[k] === 'object' && client[k].label)
+        client[k].label = normalizeStateValue(client[k].label)
     }
     // also handle address_state on nested residential
     if (client.residential && client.residential.state)
