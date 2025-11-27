@@ -32,17 +32,6 @@
           />
         </div>
       </label-form>
-      <div class="col-auto q-gutter-sm">
-        <div class="col">
-          <balance-info-card :iconSee="false" title="Patrimônio investido" :value="$filtersString.formatPartternCurrency(clientEdit.cliente.investment.investimento)" />
-        </div>
-        <div class="col">
-          <balance-info-card :iconSee="false" title="Carteira/saldo" :value="$filtersString.formatPartternCurrency(clientEdit.cliente.investment.saldo)" />
-        </div>
-        <div class="col">
-          <balance-info-card :iconSee="false" title="Disponivel para investir" :value="$filtersString.formatPartternCurrency(clientEdit.cliente.investment.saldo_investivel)" />
-        </div>
-      </div>
     </div>
 
     <slot></slot>
@@ -384,7 +373,7 @@
         />
       </label-form>
 
-      <label-form className="col" textLabel="RG (formatação)">
+      <!-- <label-form className="col" textLabel="RG (formatação)">
         <q-input
           outlined
           hint="Formato: 00.000.000-0"
@@ -393,7 +382,7 @@
           placeholder="00.000.000-0"
           mask="##.###.###-#"
         />
-      </label-form>
+      </label-form> -->
 
       <label-form className="col" textLabel="CNH (formatação)">
         <q-input
@@ -817,7 +806,6 @@ import { useLayoutStore } from 'src/stores/layout'
 import { storeToRefs } from 'pinia'
 import useRules from 'src/composables/global/useRules'
 import { titleCase } from 'src/utils/normalize'
-import BalanceInfoCard from 'src/components/Card/BalanceInfoCard.vue'
 
 const layoutStore = useLayoutStore()
 const { clientEdit } = storeToRefs(layoutStore)
