@@ -1,7 +1,7 @@
 <template>
   <q-form class="PersonalDataLayout">
-    <div class="row">
-      <label-form className="col row" textLabel="Foto (Avatar)">
+    <div class="row justify-around">
+      <label-form className="col-auto row" textLabel="Foto (Avatar)">
         <div class="col">
           <q-btn
             label=""
@@ -32,6 +32,17 @@
           />
         </div>
       </label-form>
+      <div class="col-auto q-gutter-sm">
+        <div class="col">
+          <balance-info-card :iconSee="false" title="Patrimônio investido" :value="$filtersString.formatPartternCurrency(clientEdit.cliente.investment.investimento)" />
+        </div>
+        <div class="col">
+          <balance-info-card :iconSee="false" title="Carteira/saldo" :value="$filtersString.formatPartternCurrency(clientEdit.cliente.investment.saldo)" />
+        </div>
+        <div class="col">
+          <balance-info-card :iconSee="false" title="Disponivel para investir" :value="$filtersString.formatPartternCurrency(clientEdit.cliente.investment.saldo_investivel)" />
+        </div>
+      </div>
     </div>
 
     <slot></slot>
@@ -806,6 +817,7 @@ import { useLayoutStore } from 'src/stores/layout'
 import { storeToRefs } from 'pinia'
 import useRules from 'src/composables/global/useRules'
 import { titleCase } from 'src/utils/normalize'
+import BalanceInfoCard from 'src/components/Card/BalanceInfoCard.vue'
 
 const layoutStore = useLayoutStore()
 const { clientEdit } = storeToRefs(layoutStore)

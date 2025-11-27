@@ -3,7 +3,7 @@
     <q-card-section class="q-pa-none">
       <div class="text-caption text-grey-8" style="display: inline-flex">
         {{ title }}
-        <span>
+        <span v-if="iconSee">
           <IconInfoCircle size="20px" />
         </span>
       </div>
@@ -37,6 +37,10 @@ export default defineComponent({
       type: String,
       default: 'primary',
     },
+    iconSee:{
+      type:Boolean,
+      default:true
+    }
   },
 })
 </script>

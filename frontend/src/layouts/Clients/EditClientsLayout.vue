@@ -58,6 +58,17 @@
         />
       </template>
     </q-banner>
+    <!-- <q-card-section class="row q-gutter-sm">
+      <div class="col">
+        <balance-info-card :iconSee="false" title="Patrimônio investido" :value="$filtersString.formatPartternCurrency(clientEdit.cliente.investment.investimento)" />
+      </div>
+      <div class="col">
+        <balance-info-card :iconSee="false" title="Carteira/saldo" :value="$filtersString.formatPartternCurrency(clientEdit.cliente.investment.saldo)" />
+      </div>
+      <div class="col">
+        <balance-info-card :iconSee="false" title="Disponivel para investir" :value="$filtersString.formatPartternCurrency(clientEdit.cliente.investment.saldo_investivel)" />
+      </div>
+    </q-card-section> -->
 
     <q-card-section>
       <div class="text-h7 text-bold">Informações e Documentos Pessoais</div>
@@ -156,6 +167,7 @@ import InvestmentFormLayout from 'src/layouts/Clients/Form/InvestmentFormLayout.
 import WeLendFormLayout from 'src/layouts/Clients/Form/WeLendFormLayout.vue'
 import ContractClientTable from 'src/components/Table/Clients/ContractClientTable.vue'
 import CarteiraContractsFields from 'src/layouts/Clients/Form/CarteiraContractsFields.vue'
+// import BalanceInfoCard from 'src/components/Card/BalanceInfoCard.vue'
 import useCliente from 'src/composables/Fakes/useCliente'
 import useAdvisors from 'src/composables/Fakes/useAdvisors'
 // useClientStore removed: compare functionality moved/removed from this layout
